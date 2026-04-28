@@ -6,9 +6,10 @@
 
 
 ## 预览
-<img width="708" height="1100" alt="image" src="https://github.com/user-attachments/assets/44e4a15f-3410-495c-b040-e7d472fdacc2" />
 
-<img width="705" height="451" alt="image" src="https://github.com/user-attachments/assets/27e5afb3-e903-430b-aa70-2837db1851f3" />
+![插件主界面](https://github.com/user-attachments/assets/44e4a15f-3410-495c-b040-e7d472fdacc2)
+
+![生成结果预览](https://github.com/user-attachments/assets/27e5afb3-e903-430b-aa70-2837db1851f3)
 
 
 
