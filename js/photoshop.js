@@ -207,6 +207,56 @@ async function getActiveLayerBounds() {
     return normalizeBounds(result?.[0]?.bounds || result?.[0]);
 }
 
+function tempSelectionChannelName() {
+    return `__ai_temp_selection_${Date.now()}`;
+}
+
+async function saveSelectionToTempChannel(channelName) {
+    await action.batchPlay([{
+        _obj: "duplicate",
+        _target: [{ _ref: "channel", _property: "selection" }],
+        name: channelName,
+        _options: { dialogOptions: "dontDisplay" }
+    }], {});
+}
+
+async function restoreSelectionFromTempChannel(channelName) {
+    await action.batchPlay([{
+        _obj: "set",
+        _target: [{ _ref: "channel", _property: "selection" }],
+        to: { _ref: "channel", _name: channelName },
+        _options: { dialogOptions: "dontDisplay" }
+    }], {});
+}
+
+async function deleteTempSelectionChannel(channelName) {
+    await action.batchPlay([{
+        _obj: "delete",
+        _target: [{ _ref: "channel", _name: channelName }],
+        _options: { dialogOptions: "dontDisplay" }
+    }], {});
+}
+
+async function restoreAndDeleteTempSelectionChannel(channelName) {
+    let restored = false;
+    try {
+        await restoreSelectionFromTempChannel(channelName);
+        restored = true;
+    } catch (error) {
+        logWarn("从临时通道恢复选区失败", { message: error.message || error.toString() });
+        appendRuntimeLog("从临时通道恢复选区失败。", { error: error.message || error.toString() });
+    }
+
+    try {
+        await deleteTempSelectionChannel(channelName);
+    } catch (error) {
+        logWarn("删除临时选区通道失败", { message: error.message || error.toString() });
+        appendRuntimeLog("删除临时选区通道失败，可在通道面板手动清理。", { channel: channelName });
+    }
+
+    return restored;
+}
+
 async function restoreSelectionBounds(bounds) {
     if (!bounds) return;
     await action.batchPlay([{
@@ -280,6 +330,9 @@ async function sendImageToPhotoshop() {
 
         const tempFile = await writeImageTempFile(imageFileData.buffer, imageFileData.extension);
 
+        let selectionChannelName = "";
+        let targetForRestore = null;
+
         await core.executeAsModal(async () => {
             if (!app.activeDocument) {
                 await app.openAsNew(tempFile);
@@ -289,17 +342,29 @@ async function sendImageToPhotoshop() {
 
             try {
                 const target = await getTargetBoundsForPlacement();
+                targetForRestore = target;
+                selectionChannelName = target.type === "selection" ? tempSelectionChannelName() : "";
+                if (selectionChannelName) await saveSelectionToTempChannel(selectionChannelName);
+
                 await placeImageInActiveDocument(tempFile);
                 await fitActiveLayerToBounds(target.bounds);
-                if (target.type === "selection") await restoreSelectionBounds(target.bounds);
                 appendRuntimeLog("生成图已作为新图层放入当前文档并匹配目标尺寸。", { target: target.type, bounds: target.bounds });
 
             } catch (error) {
                 logError("放入当前文档失败，回退打开新文档", error);
                 appendRuntimeLog("放入当前文档失败，回退作为新文档打开。", { error: error.message || error.toString() });
                 await app.openAsNew(tempFile);
+                selectionChannelName = "";
+                targetForRestore = null;
             }
         }, { commandName: "发送生成图到 Photoshop" });
+
+        if (selectionChannelName) {
+            await core.executeAsModal(async () => {
+                const restored = await restoreAndDeleteTempSelectionChannel(selectionChannelName);
+                if (!restored && targetForRestore?.bounds) await restoreSelectionBounds(targetForRestore.bounds);
+            }, { commandName: "恢复原选区" });
+        }
 
         try { await tempFile.delete(); } catch (error) { logWarn("删除临时图片失败", { message: error.message || error.toString() }); }
         logInfo("发送生成图到 Photoshop 完成", { extension: imageFileData.extension });
