@@ -69,14 +69,30 @@ function normalizeImageDimension(value) {
 }
 
 function normalizeImageSize(width, height) {
-    const scale = Math.min(1, MAX_IMAGE_EDGE / Math.max(width, height));
+    const pixelScale = Math.max(1, Math.sqrt(MIN_IMAGE_PIXELS / (width * height)));
+    const maxEdgeScale = MAX_IMAGE_EDGE / Math.max(width, height);
+    const scale = Math.min(pixelScale, maxEdgeScale);
     const normalizedWidth = normalizeImageDimension(width * scale);
     const normalizedHeight = normalizeImageDimension(height * scale);
     return { width: normalizedWidth, height: normalizedHeight, size: `${normalizedWidth}x${normalizedHeight}` };
 }
 
+function getEffectivePromptTemplate(customTemplate, defaultTemplate) {
+    const template = String(customTemplate || "").trim();
+    return template || defaultTemplate;
+}
+
+function applyPromptTemplate(template, promptText) {
+    if (template.includes("{{prompt}}")) return template.replace(/\{\{prompt\}\}/g, promptText);
+    return `${template}\n\n${promptText}`;
+}
+
 function buildPromptForRequest(promptText) {
-    return `图片生成任务：${promptText}\n\n请在生成图片时优化构图、主体、光线、材质、色彩和氛围，让画面更完整、更适合设计排版使用。增强要求：主体明确，构图干净，层次清晰，细节丰富，柔和自然光，色彩协调，质感高级，无文字，无水印，无 Logo，无边框。`;
+    return applyPromptTemplate(getEffectivePromptTemplate(imagePromptTemplate, DEFAULT_IMAGE_PROMPT_TEMPLATE), promptText);
+}
+
+function buildPromptForEditRequest(promptText) {
+    return applyPromptTemplate(getEffectivePromptTemplate(imageEditPromptTemplate, DEFAULT_IMAGE_EDIT_PROMPT_TEMPLATE), promptText);
 }
 
 function dataUrlToBlob(dataUrl) {

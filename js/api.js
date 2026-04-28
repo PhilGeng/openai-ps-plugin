@@ -108,7 +108,13 @@ async function requestImageEdit(cleanBaseUrl, promptText, size, referenceImage, 
     });
     appendRuntimeLog("图片编辑请求", { endpoint, size, model: tpModel, boundsType: referenceImage.boundsType });
 
-    const response = await fetch(endpoint, { method: "POST", headers, body: formData, signal });
+    let response;
+    try {
+        response = await fetch(endpoint, { method: "POST", headers, body: formData, signal });
+    } catch (error) {
+        if (error.name === "AbortError") throw error;
+        throw new Error(`图片编辑请求失败：${error.message || error.toString()}。当前 UXP 环境或代理可能不支持 FormData 图片上传，可取消“携带 PS 画面”后重试。`);
+    }
     logInfo("图片编辑响应信息", { status: response.status, ok: response.ok, statusText: response.statusText });
     appendRuntimeLog("图片编辑响应", { status: response.status, ok: response.ok, statusText: response.statusText });
     return parseImageResponse(response, "图片编辑");

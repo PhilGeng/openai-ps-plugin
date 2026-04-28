@@ -323,16 +323,39 @@ function showSettingsSaveTip(message) {
     }, 1800);
 }
 
+function normalizeSavedPromptTemplate(value, defaultTemplate) {
+    const template = value.trim();
+    return template === defaultTemplate ? "" : template;
+}
+
+function displayPromptTemplate(customTemplate, defaultTemplate) {
+    return customTemplate || defaultTemplate;
+}
+
 function saveSettings() {
     tpUrl = tpUrlInput.value.trim() || DEFAULT_PROXY_URL;
     tpModel = tpModelInput.value.trim() || DEFAULT_IMAGE_MODEL;
     tpKey = tpKeyInput.value.trim();
+    imagePromptTemplate = normalizeSavedPromptTemplate(imagePromptTemplateInput.value, DEFAULT_IMAGE_PROMPT_TEMPLATE);
+    imageEditPromptTemplate = normalizeSavedPromptTemplate(imageEditPromptTemplateInput.value, DEFAULT_IMAGE_EDIT_PROMPT_TEMPLATE);
     localStorage.setItem("gemini_tp_url", tpUrl);
     localStorage.setItem("gemini_tp_model", tpModel);
     localStorage.setItem("gemini_tp_key", tpKey);
+    if (imagePromptTemplate) {
+        localStorage.setItem("gemini_image_prompt_template", imagePromptTemplate);
+    } else {
+        localStorage.removeItem("gemini_image_prompt_template");
+    }
+    if (imageEditPromptTemplate) {
+        localStorage.setItem("gemini_image_edit_prompt_template", imageEditPromptTemplate);
+    } else {
+        localStorage.removeItem("gemini_image_edit_prompt_template");
+    }
     tpUrlInput.value = tpUrl;
     tpModelInput.value = tpModel;
-    logInfo("保存接口配置完成", { hasThirdpartyUrl: Boolean(tpUrl), tpModel, hasThirdpartyKey: Boolean(tpKey) });
+    imagePromptTemplateInput.value = displayPromptTemplate(imagePromptTemplate, DEFAULT_IMAGE_PROMPT_TEMPLATE);
+    imageEditPromptTemplateInput.value = displayPromptTemplate(imageEditPromptTemplate, DEFAULT_IMAGE_EDIT_PROMPT_TEMPLATE);
+    logInfo("保存接口配置完成", { hasThirdpartyUrl: Boolean(tpUrl), tpModel, hasThirdpartyKey: Boolean(tpKey), hasImagePromptTemplate: Boolean(imagePromptTemplate), hasImageEditPromptTemplate: Boolean(imageEditPromptTemplate) });
     showSettingsSaveTip("配置已保存");
     setOutputText("配置已保存。");
 }
@@ -341,6 +364,8 @@ function initializeSettings() {
     tpUrlInput.value = tpUrl;
     tpModelInput.value = tpModel;
     tpKeyInput.value = tpKey;
+    imagePromptTemplateInput.value = displayPromptTemplate(imagePromptTemplate, DEFAULT_IMAGE_PROMPT_TEMPLATE);
+    imageEditPromptTemplateInput.value = displayPromptTemplate(imageEditPromptTemplate, DEFAULT_IMAGE_EDIT_PROMPT_TEMPLATE);
 }
 
 function focusPromptInput() {
@@ -398,7 +423,8 @@ async function handleGenerateClick() {
         let imageData;
         if (includeCanvas) {
             const referenceImage = await getPhotoshopReferenceImage();
-            imageData = await requestImageEdit(cleanBaseUrl, requestPromptText, size, referenceImage, imageGenerationAbortController.signal);
+            const editPromptText = buildPromptForEditRequest(promptText);
+            imageData = await requestImageEdit(cleanBaseUrl, editPromptText, size, referenceImage, imageGenerationAbortController.signal);
         } else {
             imageData = await requestImageGeneration(cleanBaseUrl, requestPromptText, size, imageGenerationAbortController.signal);
         }

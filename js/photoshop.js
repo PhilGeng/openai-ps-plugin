@@ -59,41 +59,107 @@ async function getCanvasBase64() {
     logInfo("提取画布开始");
     ensurePhotoshopAvailable("画布诊断");
     if (!app.activeDocument) throw new Error("PS 中没有打开的文档，无法获取画面。");
+
     let base64Image = "";
-    await core.executeAsModal(async () => {
+    let byteLength = 0;
+    let modalError = null;
+
+    core.executeAsModal(async () => {
         const pluginFolder = await fs.getDataFolder();
         const tempFile = await pluginFolder.createFile("temp_canvas.jpg", { overwrite: true });
         await app.activeDocument.saveAs.jpg(tempFile, { quality: 8 }, true);
         const buffer = await tempFile.read({ format: formats.binary });
         base64Image = arrayBufferToBase64(buffer);
-        logInfo("提取画布完成", { bytes: buffer.byteLength, base64Length: base64Image.length });
-        await tempFile.delete();
-    }, { commandName: "提取画面给 AI" });
-    return base64Image;
-}
+        byteLength = buffer.byteLength;
+    }, { commandName: "提取画面给 AI" }).catch(error => {
+        modalError = error;
+    });
 
-function loadImageFromDataUrl(dataUrl) {
     return new Promise((resolve, reject) => {
-        const image = new Image();
-        image.onload = () => resolve(image);
-        image.onerror = () => reject(new Error("无法读取 Photoshop 参考图。"));
-        image.src = dataUrl;
+        const waitForExport = () => {
+            if (base64Image) {
+                logInfo("提取画布完成", { bytes: byteLength, base64Length: base64Image.length });
+                appendRuntimeLog("Photoshop 画布导出数据已读取。", { hasData: true });
+                resolve(base64Image);
+                return;
+            }
+            if (modalError) {
+                reject(modalError);
+                return;
+            }
+            setTimeout(waitForExport, 16);
+        };
+        waitForExport();
     });
 }
 
-async function cropDataUrlToBounds(dataUrl, bounds) {
-    const image = await loadImageFromDataUrl(dataUrl);
-    const canvas = document.createElement("canvas");
-    const left = Math.max(0, Math.round(bounds.left));
-    const top = Math.max(0, Math.round(bounds.top));
-    const width = Math.min(Math.round(bounds.width), image.naturalWidth - left);
-    const height = Math.min(Math.round(bounds.height), image.naturalHeight - top);
-    if (width <= 0 || height <= 0) throw new Error("选区范围超出导出画面，无法裁切。");
-    canvas.width = width;
-    canvas.height = height;
-    const ctx = canvas.getContext("2d");
-    ctx.drawImage(image, left, top, width, height, 0, 0, width, height);
-    return canvas.toDataURL("image/png");
+function buildCropRectangle(bounds) {
+    return {
+        _obj: "rectangle",
+        top: { _unit: "pixelsUnit", _value: Math.max(0, Math.round(bounds.top)) },
+        left: { _unit: "pixelsUnit", _value: Math.max(0, Math.round(bounds.left)) },
+        bottom: { _unit: "pixelsUnit", _value: Math.max(1, Math.round(bounds.bottom)) },
+        right: { _unit: "pixelsUnit", _value: Math.max(1, Math.round(bounds.right)) }
+    };
+}
+
+async function exportSelectionReferenceBase64(selectionBounds) {
+    logInfo("提取选区参考图开始", selectionBounds);
+    ensurePhotoshopActionAvailable("导出选区参考图");
+
+    let base64Image = "";
+    let byteLength = 0;
+    let modalError = null;
+
+    core.executeAsModal(async () => {
+        const pluginFolder = await fs.getDataFolder();
+        const tempFile = await pluginFolder.createFile("temp_selection_reference.jpg", { overwrite: true });
+
+        await action.batchPlay([{
+            _obj: "duplicate",
+            _target: [{ _ref: "document", _enum: "ordinal", _value: "targetEnum" }],
+            name: "AI Selection Reference",
+            _options: { dialogOptions: "dontDisplay" }
+        }, {
+            _obj: "crop",
+            to: buildCropRectangle(selectionBounds),
+            angle: { _unit: "angleUnit", _value: 0 },
+            delete: true,
+            _options: { dialogOptions: "dontDisplay" }
+        }], {});
+
+        try {
+            await app.activeDocument.saveAs.jpg(tempFile, { quality: 8 }, true);
+            const buffer = await tempFile.read({ format: formats.binary });
+            base64Image = arrayBufferToBase64(buffer);
+            byteLength = buffer.byteLength;
+        } finally {
+            await action.batchPlay([{
+                _obj: "close",
+                saving: { _enum: "yesNo", _value: "no" },
+                _options: { dialogOptions: "dontDisplay" }
+            }], {});
+        }
+    }, { commandName: "导出选区参考图" }).catch(error => {
+        modalError = error;
+    });
+
+    return new Promise((resolve, reject) => {
+        const waitForExport = () => {
+            if (base64Image) {
+                logInfo("提取选区参考图完成", { bytes: byteLength, base64Length: base64Image.length });
+                appendRuntimeLog("Photoshop 选区参考图已导出。", { bytes: byteLength });
+                resolve(base64Image);
+                return;
+            }
+            if (modalError) {
+                reject(modalError);
+                return;
+            }
+            setTimeout(waitForExport, 16);
+        };
+        waitForExport();
+    });
 }
 
 async function getPhotoshopReferenceImage() {
@@ -101,22 +167,17 @@ async function getPhotoshopReferenceImage() {
     if (!app.activeDocument) throw new Error("PS 中没有打开的文档，无法携带画面。");
     appendRuntimeLog("正在提取 Photoshop 参考图...");
     const selectionBounds = await getSelectionBoundsOrNull();
-    const fullDataUrl = `data:image/jpeg;base64,${await getCanvasBase64()}`;
 
     if (!selectionBounds) {
+        const fullDataUrl = `data:image/jpeg;base64,${await getCanvasBase64()}`;
         appendRuntimeLog("未检测到选区，使用当前可见画面作为参考图。");
         return { dataUrl: fullDataUrl, mimeType: "image/jpeg", boundsType: "canvas", bounds: getDocumentBounds() };
     }
 
-    try {
-        const croppedDataUrl = await cropDataUrlToBounds(fullDataUrl, selectionBounds);
-        appendRuntimeLog("检测到选区，使用选区范围裁切参考图。", selectionBounds);
-        return { dataUrl: croppedDataUrl, mimeType: "image/png", boundsType: "selection", bounds: selectionBounds };
-    } catch (error) {
-        logError("选区参考图裁切失败，回退当前可见画面", error, selectionBounds);
-        appendRuntimeLog("选区裁切失败，已回退当前可见画面。", { error: error.message || error.toString() });
-        return { dataUrl: fullDataUrl, mimeType: "image/jpeg", boundsType: "canvas", bounds: getDocumentBounds() };
-    }
+    appendRuntimeLog("检测到选区，正在只导出选区范围作为参考图。", selectionBounds);
+    const selectionDataUrl = `data:image/jpeg;base64,${await exportSelectionReferenceBase64(selectionBounds)}`;
+    appendRuntimeLog("Photoshop 选区参考图已提取，准备发送图片编辑请求。", { hasSelection: true });
+    return { dataUrl: selectionDataUrl, mimeType: "image/jpeg", boundsType: "selection", bounds: selectionBounds };
 }
 
 async function writeImageTempFile(buffer, extension) {
@@ -144,6 +205,16 @@ async function getActiveLayerBounds() {
         _options: { dialogOptions: "dontDisplay" }
     }], { synchronousExecution: true });
     return normalizeBounds(result?.[0]?.bounds || result?.[0]);
+}
+
+async function restoreSelectionBounds(bounds) {
+    if (!bounds) return;
+    await action.batchPlay([{
+        _obj: "set",
+        _target: [{ _ref: "channel", _property: "selection" }],
+        to: buildCropRectangle(bounds),
+        _options: { dialogOptions: "dontDisplay" }
+    }], {});
 }
 
 async function fitActiveLayerToBounds(targetBounds) {
@@ -219,7 +290,9 @@ async function sendImageToPhotoshop() {
             try {
                 const target = await getTargetBoundsForPlacement();
                 await placeImageInActiveDocument(tempFile);
-                appendRuntimeLog("生成图已作为新图层放入当前文档。", { target: target.type, bounds: target.bounds });
+                await fitActiveLayerToBounds(target.bounds);
+                if (target.type === "selection") await restoreSelectionBounds(target.bounds);
+                appendRuntimeLog("生成图已作为新图层放入当前文档并匹配目标尺寸。", { target: target.type, bounds: target.bounds });
 
             } catch (error) {
                 logError("放入当前文档失败，回退打开新文档", error);
