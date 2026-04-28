@@ -4,6 +4,14 @@
 
 一个基于 Adobe Photoshop UXP 的 AI 图片生成面板插件。插件通过 OpenAI 兼容接口连接本地代理或第三方图片模型，支持输入生成需求、选择输出尺寸、可选携带当前 Photoshop 画面作为参考，并将生成结果发送回 Photoshop。
 
+
+## 预览
+<img width="708" height="1100" alt="image" src="https://github.com/user-attachments/assets/44e4a15f-3410-495c-b040-e7d472fdacc2" />
+
+<img width="705" height="451" alt="image" src="https://github.com/user-attachments/assets/27e5afb3-e903-430b-aa70-2837db1851f3" />
+
+
+
 ## 关键词
 
 Photoshop 插件、Photoshop UXP、Adobe UXP、UXP Plugin、OpenAI Photoshop Plugin、OpenAI PS Plugin、AI 图片生成、AI 绘图、AI 生图、文生图、图生图、图片编辑、OpenAI Images API、OpenAI 兼容接口、GPT Image、gpt-image-2、Photoshop AI 工具、设计辅助工具、设计排版、AIGC、Stable Diffusion 代理、本地 AI 代理、图片生成工作流。
