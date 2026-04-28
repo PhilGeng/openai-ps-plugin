@@ -9,9 +9,9 @@
 
 ![配置项](https://github.com/user-attachments/assets/3da98699-f230-4d32-8931-14bcf0f4516a)
 
-![选区替换1](https://github.com/user-attachments/assets/760059ad-4488-4187-b16b-601805812c91)
+![选区替换1](https://github.com/user-attachments/assets/cd15dafc-2bbb-4bd8-9494-28c67fbd8b0a)
 
-![选区替换2](https://github.com/user-attachments/assets/483a7bbc-6d97-443e-a14a-0fa2f613e11f)
+![选区替换2](https://github.com/user-attachments/assets/d4dd9017-63e5-4a92-b2a2-4c298126241d)
 
 
 ## 关键词
