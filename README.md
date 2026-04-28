@@ -1,5 +1,7 @@
 # 设计排版AI助手
 
+基于：https://github.com/MhcChampion/Gemini-PS-Plugin
+
 一个基于 Adobe Photoshop UXP 的 AI 图片生成面板插件。插件通过 OpenAI 兼容接口连接本地代理或第三方图片模型，支持输入生成需求、选择输出尺寸、可选携带当前 Photoshop 画面作为参考，并将生成结果发送回 Photoshop。
 
 ## 关键词
