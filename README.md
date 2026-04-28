@@ -7,10 +7,11 @@
 
 ## 预览
 
-![插件主界面](https://github.com/user-attachments/assets/44e4a15f-3410-495c-b040-e7d472fdacc2)
+![配置项](https://github.com/user-attachments/assets/3da98699-f230-4d32-8931-14bcf0f4516a)
 
-![生成结果预览](https://github.com/user-attachments/assets/27e5afb3-e903-430b-aa70-2837db1851f3)
+![选区替换1](https://github.com/user-attachments/assets/760059ad-4488-4187-b16b-601805812c91)
 
+![选区替换2](https://github.com/user-attachments/assets/483a7bbc-6d97-443e-a14a-0fa2f613e11f)
 
 
 ## 关键词
