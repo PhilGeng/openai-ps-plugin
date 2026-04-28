@@ -1,0 +1,48 @@
+{
+  "id": "openai-ps-plugin",
+  "name": "设计排版AI助手",
+  "version": "1.0.0",
+  "main": "index.html",
+  "host": {
+    "app": "PS",
+    "minVersion": "23.3.0"
+  },
+  "manifestVersion": 5,
+  "icons": [
+    {
+      "width": 48,
+      "height": 48,
+      "path": "icon.png",
+      "scale": [1],
+      "theme": ["dark", "light", "all"]
+    }
+  ],
+  "entrypoints": [
+    {
+      "type": "panel",
+      "id": "designAIPanel",
+      "label": {
+        "default": "AI 设计助手"
+      },
+      "icons": [
+        {
+          "width": 23,
+          "height": 23,
+          "path": "icon.png",
+          "scale": [1],
+          "theme": ["dark", "light", "all"]
+        }
+      ],
+      "minimumSize": {"width": 300, "height": 400},
+      "maximumSize": {"width": 800, "height": 1200},
+      "preferredDockedSize": {"width": 320, "height": 600}
+    }
+  ],
+  "requiredPermissions": {
+    "localFileSystem": "plugin",
+    "clipboard": "readAndWrite",
+    "network": {
+      "domains": "all"
+    }
+  }
+}

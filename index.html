@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        * { box-sizing: border-box; }
+        input, textarea, button { margin: 0; font-family: inherit; }
+        textarea { display: block; }
+        :root {
+            --bg: #151515;
+            --panel: rgba(34, 34, 34, 0.72);
+            --panel-strong: rgba(42, 42, 42, 0.82);
+            --field: rgba(15, 15, 15, 0.78);
+            --border: rgba(255, 255, 255, 0.11);
+            --border-strong: rgba(255, 255, 255, 0.18);
+            --text: #f4f4f4;
+            --muted: #a7a7a7;
+            --blue: #1677ff;
+            --blue-2: #0f5dff;
+            --glow: rgba(22, 119, 255, 0.5);
+        }
+        body {
+            color: var(--text); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            height: 100vh; margin: 0; overflow: hidden;
+            background: #151515;
+        }
+        #app-shell { display: flex; height: 100vh; width: 100vw; }
+        #tab-nav {
+            width: 52px; flex: 0 0 52px; background: rgba(18, 18, 18, 0.78); border-right: 1px solid rgba(255,255,255,0.16);
+            display: flex; flex-direction: column; align-items: center; padding: 24px 7px;
+            box-shadow: inset -1px 0 0 rgba(0,0,0,0.5); position: relative; overflow: visible;
+        }
+        #tab-nav.collapsed { padding: 0; }
+        #tab-nav.collapsed .tab-btn { opacity: 0; pointer-events: none; transform: translateX(-8px); }
+        #sidebar-toggle-hitarea {
+            position: absolute; right: -18px; top: 50%; width: 36px; height: 36px; transform: translateY(-50%);
+            z-index: 50; display: flex; align-items: center; justify-content: center;
+        }
+        #sidebar-toggle {
+            width: 4px; height: 36px; padding: 0; border: none; border-radius: 2px;
+            background: rgba(31, 124, 255, 0.85); color: #ffffff; cursor: pointer; overflow: hidden;
+            display: flex; align-items: center; justify-content: center; transition: none;
+        }
+        #sidebar-toggle-icon {
+            opacity: 0; transform: scale(0.75); font-size: 18px; line-height: 1; color: #ffffff;
+            pointer-events: none; transition: none;
+        }
+        .tab-btn {
+            width: 32px; height: 32px; padding: 0; margin-bottom: 14px; border-radius: 9px; background: transparent;
+            color: #d6def0; border: 1px solid transparent; font-size: 0; line-height: 1;
+            display: block; cursor: pointer; position: relative;
+            text-shadow: 0 2px 8px rgba(0,0,0,0.5); transition: all 0.18s ease;
+        }
+        .tab-btn img { width: 22px; height: 22px; display: block; margin: 4px auto; }
+        .tab-btn .text-icon { display: block; font-size: 16px; line-height: 30px; text-align: center; }
+        .tab-btn:hover { color: #fff; border-color: rgba(121, 152, 214, 0.35); background: rgba(255,255,255,0.04); }
+        .tab-btn.active {
+            background: #1677ff; color: #fff; border-color: rgba(86, 159, 255, 0.95);
+            box-shadow: 0 0 18px rgba(22, 119, 255, 0.55), inset 0 0 0 1px rgba(255,255,255,0.18);
+        }
+        #tab-content { flex: 1; min-width: 0; height: 100vh; overflow: hidden; }
+        .tab-panel { display: none; height: 100%; padding: 8px 10px; overflow-y: auto; }
+        .tab-panel.active { display: block; }
+        .module {
+            background: rgba(31, 31, 31, 0.68); padding: 9px 11px; border-radius: 12px; border: 1px solid var(--border);
+            margin: 0 0 6px 0; box-shadow: 0 8px 18px rgba(0,0,0,0.16), inset 0 1px 0 rgba(255,255,255,0.045);
+        }
+        label { font-size: 12px; font-weight: 700; color: var(--text); margin-bottom: 6px; display: block; }
+        .section-title {
+            position: relative; display: flex; align-items: center;
+            font-size: 13px; font-weight: 800; color: #f7f7f7; margin-bottom: 6px; letter-spacing: 0.1px;
+        }
+        .section-title-mark { width: 4px; height: 15px; border-radius: 2px; margin-right: 8px; background: #1677ff; flex: 0 0 4px; }
+        .size-grid { display: flex; flex-wrap: nowrap; }
+        .size-option {
+            min-width: 88px; height: 34px; padding: 0 8px; margin-right: 7px; border: 1px solid var(--border); border-radius: 9px;
+            color: #ededed; background: rgba(12, 12, 12, 0.55); cursor: pointer; font-size: 11px; font-weight: 700;
+            white-space: nowrap; box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+        }
+        .size-option:hover { border-color: var(--border-strong); background: rgba(28, 28, 28, 0.78); }
+        .size-option.active { background: #1677ff; border-color: rgba(113, 178, 255, 0.9); color: white; }
+        #custom-size-row { display: none; margin-top: 7px; align-items: center; }
+        #custom-size-row.active { display: flex; }
+        #custom-size-row input { width: calc((100% - 32px) / 2); }
+        #custom-size-row span { color: var(--muted); font-size: 16px; width: 32px; text-align: center; }
+        input[type="text"], input[type="password"], input[type="number"], textarea {
+            appearance: none; -webkit-appearance: none; width: 100%; background: #101010 !important; background-color: #101010 !important; color: var(--text);
+            border: 1px solid var(--border-strong) !important; border-radius: 9px; padding: 8px 10px; font-size: 12px;
+            box-shadow: none !important;
+        }
+        input::placeholder, textarea::placeholder { color: rgba(210, 210, 210, 0.42); }
+        input:focus, textarea:focus { outline: none; border-color: #2b8bff !important; box-shadow: 0 0 0 1px rgba(22,119,255,0.35) !important; }
+        #prompt-row { display: block; }
+        #prompt-input { min-height: 86px; resize: vertical; line-height: 1.38; background: #101010 !important; background-color: #101010 !important; border: 1px solid var(--border-strong) !important; }
+        .checkbox-wrapper {
+            display: flex; align-items: center; justify-content: flex-start;
+            color: #d4dbea; border: none; border-radius: 8px; padding: 5px 0 0 0; background: transparent;
+        }
+        .checkbox-wrapper input { width: 15px; height: 15px; margin: 0 6px 0 0; accent-color: var(--blue); }
+        .checkbox-wrapper label { margin: 0 6px 0 0; font-size: 12px; cursor: pointer; color: #d4dbea; }
+        .help-dot { width: 15px; height: 15px; opacity: 0.8; }
+        .btn-group {
+            display: flex; padding: 5px 7px; margin: 0 0 6px 0;
+            background: rgba(31, 31, 31, 0.64); border: 1px solid var(--border); border-radius: 12px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.04);
+        }
+        button, .action-btn {
+            background: #1677ff; color: white; border: 1px solid rgba(105, 170, 255, 0.85);
+            padding: 5px 9px; border-radius: 8px; cursor: pointer; font-weight: 800; font-size: 12px;
+            box-shadow: 0 0 16px rgba(22,119,255,0.24), inset 0 1px 0 rgba(255,255,255,0.22);
+        }
+        button:hover, .action-btn:hover { background: #2b8bff; }
+        .action-btn { display: flex; align-items: center; justify-content: center; text-align: center; }
+        .action-btn.danger { background: #d83a34; border-color: rgba(255, 120, 114, 0.9); box-shadow: 0 0 16px rgba(216,58,52,0.24), inset 0 1px 0 rgba(255,255,255,0.18); }
+        .action-btn.danger:hover { background: #ef4a43; }
+        #send-btn { flex: 1; margin-right: 7px; }
+        #clear-btn { width: 92px; }
+        .secondary-action { background: rgba(18, 18, 18, 0.72); border-color: var(--border-strong); color: #f1f1f1; box-shadow: inset 0 1px 0 rgba(255,255,255,0.05); }
+        .secondary-action:hover { background: rgba(36, 36, 36, 0.92); }
+        #module-image-output { min-height: 190px; display: flex; flex-direction: column; }
+        #image-progress { display: none; height: 3px; margin: -1px 0 5px 0; background: rgba(255,255,255,0.08); border-radius: 2px; overflow: hidden; }
+        #image-progress-bar { width: 0%; height: 100%; background: #1677ff; border-radius: 2px; transition: width 0.55s ease; }
+        #image-progress.active { display: block; }
+        #image-preview-container {
+            min-height: 210px; overflow: hidden; display: flex; flex-direction: column; align-items: center;
+            justify-content: center; background: rgba(8, 8, 8, 0.58); padding: 12px; border-radius: 12px;
+            border: 1px dashed rgba(255,255,255,0.22);
+        }
+        #image-placeholder {
+            flex: 1; min-height: 165px; display: flex; flex-direction: column; justify-content: center; align-items: center;
+            color: rgba(210, 219, 238, 0.72); font-size: 13px; gap: 7px;
+        }
+        #image-placeholder::before { content: none; }
+        #image-placeholder-icon { width: 40px; height: 40px; }
+        #generated-image {
+            width: auto; max-width: 92%; max-height: 240px; border-radius: 7px; border: 1px solid rgba(163,184,221,0.42);
+            display: none; object-fit: contain; background: #0b0b0b;
+        }
+        #image-meta-area {
+            width: 92%; max-width: 520px; height: 38px; margin-top: 9px; display: none; align-items: center;
+            justify-content: space-between; color: var(--muted); font-size: 12px;
+        }
+        #image-dimensions { flex: 1; text-align: left; }
+        #send-to-ps-btn { min-width: 104px; height: 34px; padding: 0 12px; font-size: 12px; }
+        #optimized-prompt-area {
+            width: 92%; max-width: 520px; margin-top: 8px; display: none; padding: 8px 10px;
+            border-radius: 9px; border: 1px solid rgba(255,255,255,0.14); background: rgba(16, 16, 16, 0.82);
+            color: #dce7ff; font-size: 11px; line-height: 1.35; cursor: pointer;
+        }
+        #optimized-prompt-title { color: #7db4ff; font-weight: 800; margin-bottom: 4px; }
+        #optimized-prompt-text { white-space: pre-wrap; user-select: text; -webkit-user-select: text; }
+        #optimized-prompt-tip { margin-top: 5px; color: var(--muted); font-size: 10px; }
+        #module-output { min-height: 230px; display: flex; flex-direction: column; position: relative; }
+        #output-scroll {
+            flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; background: #101010 !important; background-color: #101010 !important; color: #eeeeee; border: 1px solid var(--border-strong);
+            border-radius: 10px; padding: 9px 62px 9px 9px; cursor: text;
+        }
+        #output-area {
+            width: 100%; min-height: 100%; height: auto; overflow: hidden; background: #101010 !important; background-color: #101010 !important; color: #eeeeee; border: none !important;
+            padding: 0; resize: none; outline: none; box-shadow: none !important; font-size: 11px; line-height: 1.35;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            white-space: pre-wrap; user-select: text; -webkit-user-select: text; cursor: text;
+        }
+        .log-actions { position: absolute; right: 21px; bottom: 21px; width: 50px; height: 24px; z-index: 5; }
+        .icon-action {
+            position: absolute; top: 0; width: 24px; height: 24px; padding: 0; border: none; background-color: transparent;
+            box-shadow: none; font-size: 0; border-radius: 4px; opacity: 0.78; color: rgba(214,224,244,0.78); overflow: visible;
+        }
+        #copy-output-btn { left: 0; }
+        #clear-output-btn { right: 0; }
+        .icon-action img { width: 18px; height: 18px; display: block; margin: 3px; }
+        .icon-action:hover { background-color: rgba(255,255,255,0.05); opacity: 1; }
+        #settings-panel { overflow-y: auto; padding-top: 10px; }
+        .settings-card { max-width: 640px; width: calc(100% - 12px); margin: 0 auto 5px auto; padding: 16px 22px; }
+        .settings-card .section-title { font-size: 16px; margin-bottom: 12px; }
+        .setting-row { margin-bottom: 8px; }
+        .setting-row label { font-size: 12px; color: var(--text); margin-bottom: 6px; }
+        .setting-row input { height: 38px; font-size: 12px; padding: 8px 12px; }
+        .setting-help { margin-top: 5px; color: var(--muted); font-size: 11px; line-height: 1.3; }
+        #settings-save-tip { min-height: 15px; margin-top: 5px; color: #7db4ff; font-size: 11px; text-align: center; opacity: 0; transition: opacity 0.2s ease; }
+        #settings-save-tip.active { opacity: 1; }
+        #save-key-btn { width: 100%; height: 34px; margin-top: 6px; font-size: 12px; }
+        .btn-icon { display: inline-block; margin-right: 6px; }
+        img.btn-icon { width: 14px; height: 14px; object-fit: contain; flex: 0 0 14px; }
+        .sr-only {
+            position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden;
+            clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+        }
+    </style>
+</head>
+<body>
+    <div id="app-shell">
+        <nav id="tab-nav" aria-label="主导航">
+            <div class="tab-btn active" data-tab="home" title="首页" aria-label="首页" role="button" tabindex="0"><img src="assets/icons/home.png" class="sidebar-icon" alt=""></div>
+            <div class="tab-btn" data-tab="settings" title="设置" aria-label="设置" role="button" tabindex="0"><img src="assets/icons/settings.png" class="sidebar-icon" alt=""></div>
+            <div id="sidebar-toggle-hitarea">
+                <button id="sidebar-toggle" type="button" aria-label="收起侧边栏"><span id="sidebar-toggle-icon">«</span></button>
+            </div>
+        </nav>
+
+        <main id="tab-content">
+            <section id="home-panel" class="tab-panel active" data-panel="home">
+                <div id="module-size" class="module">
+                    <div class="section-title"><span class="section-title-mark"></span>尺寸选择</div>
+                    <div class="size-grid" id="size-options">
+                        <button type="button" class="size-option active" data-size="selection">选区</button>
+                        <button type="button" class="size-option" data-size="custom">自定义</button>
+                        <button type="button" class="size-option" data-size="1024x1024">1024×1024</button>
+                        <button type="button" class="size-option" data-size="1920x1080">1920×1080</button>
+                    </div>
+                    <div id="custom-size-row">
+                        <input type="number" id="custom-width" min="64" max="3840" step="1" placeholder="宽度">
+                        <span>×</span>
+                        <input type="number" id="custom-height" min="64" max="3840" step="1" placeholder="高度">
+                    </div>
+                </div>
+
+                <div id="module-input" class="module">
+                    <div class="section-title"><span class="section-title-mark"></span>生成需求</div>
+                    <div id="prompt-row">
+                        <textarea id="prompt-input" placeholder="输入图片生成需求，例如：清晨自然光下的嫩绿色草地特写，露珠，浅景深，治愈氛围..."></textarea>
+                        <div class="checkbox-wrapper">
+                            <input type="checkbox" id="include-canvas">
+                            <label for="include-canvas">携带 PS 画面</label>
+                            <img src="assets/icons/info.png" class="help-dot" title="勾选后优先携带当前选区；没有选区则携带当前可见画面。" alt="">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="btn-group">
+                    <div id="send-btn" class="action-btn" role="button" tabindex="0"><img src="assets/icons/send.png" class="btn-icon" alt="">发送 / 生成</div>
+                    <div id="clear-btn" class="action-btn secondary-action" role="button" tabindex="0"><img src="assets/icons/trash.png" class="btn-icon" alt="">清空</div>
+                </div>
+
+                <div id="module-image-output" class="module">
+                    <div class="section-title"><span class="section-title-mark"></span>生成结果</div>
+                    <div id="image-progress" aria-hidden="true"><div id="image-progress-bar"></div></div>
+                    <div id="image-preview-container">
+                        <div id="image-placeholder">等待生成...</div>
+                        <img id="generated-image" src="" alt="AI 生成结果">
+                        <div id="image-meta-area">
+                            <span id="image-dimensions">尚无图片</span>
+                            <button id="send-to-ps-btn">发送到 PS</button>
+                        </div>
+                        <div id="optimized-prompt-area" title="点击复制参考优化输入词" role="button" tabindex="0">
+                            <div id="optimized-prompt-title">参考优化输入词</div>
+                            <div id="optimized-prompt-text"></div>
+                            <div id="optimized-prompt-tip">点击复制</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="module-output" class="module">
+                    <div class="section-title"><span class="section-title-mark"></span>运行日志 / AI 输出</div>
+                    <div id="output-scroll"><textarea id="output-area" spellcheck="false">等待生成...</textarea></div>
+                    <div class="log-actions">
+                        <div class="icon-action" id="copy-output-btn" title="复制日志" aria-label="复制日志" role="button" tabindex="0"><img src="assets/icons/copy.png" alt=""></div>
+                        <div class="icon-action" id="clear-output-btn" title="清空日志" aria-label="清空日志" role="button" tabindex="0"><img src="assets/icons/trash.png" alt=""></div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="settings-panel" class="tab-panel" data-panel="settings">
+                <div class="module settings-card">
+                    <div class="section-title"><span class="section-title-mark"></span>OpenAI 兼容接口配置</div>
+                    <div class="setting-row">
+                        <label for="tp-url-input">代理接口地址</label>
+                        <input type="text" id="tp-url-input" placeholder="http://127.0.0.1:18317">
+                        <div class="setting-help">会自动兼容 host:port，并移除末尾 /v1。</div>
+                    </div>
+                    <div class="setting-row">
+                        <label for="tp-model-input">图片模型名称</label>
+                        <input type="text" id="tp-model-input" placeholder="gpt-image-2">
+                    </div>
+                    <div class="setting-row">
+                        <label for="tp-key-input">API Key（本地代理可留空）</label>
+                        <input type="password" id="tp-key-input" placeholder="sk-...">
+                    </div>
+                    <div id="save-key-btn" class="action-btn" role="button" tabindex="0"><img src="assets/icons/settings.png" class="btn-icon" alt="">保存配置</div>
+                    <div id="settings-save-tip" aria-live="polite"></div>
+                </div>
+            </section>
+        </main>
+    </div>
+    <script src="js/bootstrap.js"></script>
+    <script src="js/dom.js"></script>
+    <script src="js/logger.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/photoshop.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>
